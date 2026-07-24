@@ -14,10 +14,7 @@ const { protect } = require('../middleware/authMiddleware');
 
 /**
  * Auth Routes
- *
- * SOLID - Single Responsibility:
- * This file ONLY defines what URL maps to what controller function.
- * Zero business logic lives here.
+ * file defines what URL maps to what controller function.
  *
  * Public routes (no JWT required):
  *   POST /api/auth/register
