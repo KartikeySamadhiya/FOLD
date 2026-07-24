@@ -7,6 +7,9 @@ require('dotenv').config();
 
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
+const journalRoutes = require('./routes/journalRoutes');
+const connectionRoutes = require('./routes/connectionRoutes');
+const calendarRoutes = require('./routes/calendarRoutes');
 
 const app = express();
 
@@ -22,8 +25,10 @@ app.use(express.json({ limit: '10mb' })); // Allows large payloads for media upl
 app.use(express.urlencoded({ extended: true }));
 
 // --- API Routes ---
-// All auth endpoints are prefixed with /api/auth
 app.use('/api/auth', authRoutes);
+app.use('/api/journal', journalRoutes);
+app.use('/api/connections', connectionRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 // --- Health Check Route ---
 app.get('/', (req, res) => {

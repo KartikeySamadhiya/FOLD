@@ -1,0 +1,188 @@
+/* src/pages/auth/AuthLayout.css */
+
+/* The main container scales to fit the screen while keeping the 16:9 ratio of the background image */
+.auth-wrapper {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffffff;
+    overflow: hidden;
+}
+
+/* This container holds the background image and all absolute elements */
+.auth-canvas {
+    position: relative;
+    width: 100%;
+    max-width: 1920px;
+    aspect-ratio: 16 / 9;
+    background-image: url('../../assets/bg-textless.png');
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+/* If the screen is taller than 16:9, we limit height to 100vh and let width scale */
+@media (max-aspect-ratio: 16/9) {
+    .auth-canvas {
+        height: 100vh;
+        width: auto;
+    }
+}
+
+/* ---- Absolute Positioning Elements ---- */
+
+/* 1. The FOLD Logo area (Top Left) */
+.canvas-logo-area {
+    position: absolute;
+    top: 10%;
+    left: 10%;
+    width: 30%;
+}
+
+.canvas-logo-text {
+    font-family: var(--font-logo);
+    font-size: clamp(3rem, 6vw, 8rem);
+    color: #3b352b; /* Dark charcoal/brown to match the mockup */
+    line-height: 1;
+    letter-spacing: 2px;
+}
+
+.canvas-subheadline {
+    font-family: var(--font-heading);
+    font-size: clamp(1rem, 2vw, 2.5rem);
+    color: #1a1a1a;
+    margin-top: 5%;
+    line-height: 1.3;
+}
+
+.highlight-something { color: #d68b8e; } /* Matches mockup pink text */
+.highlight-someone { color: #fdab46; } /* Matches mockup orange text */
+
+/* 2. The Polaroid Text (Bottom Left) */
+.canvas-polaroid-text {
+    position: absolute;
+    bottom: 23%;
+    left: 11%;
+    width: 15%;
+    text-align: center;
+    font-family: var(--font-heading);
+    font-size: clamp(0.8rem, 1.5vw, 1.8rem);
+    color: #2d2d2d;
+    transform: rotate(-2deg);
+    line-height: 1.6;
+}
+
+/* 3. The Tape Tabs (Middle Center-Right) */
+.canvas-tape-top,
+.canvas-tape-bottom {
+    position: absolute;
+    left: 55%;
+    width: 12%;
+    height: 5%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-size: clamp(0.8rem, 1.5vw, 1.5rem);
+    text-decoration: none;
+    color: #1a1a1a;
+    z-index: 10;
+}
+
+/* Adjust these percentages based on exact pixel locations in the image */
+.canvas-tape-top {
+    top: 18.5%;
+    color: #666; /* Unselected state */
+}
+
+.canvas-tape-bottom {
+    top: 29%;
+    color: #666;
+}
+
+.canvas-tape-top.active,
+.canvas-tape-bottom.active {
+    color: #000;
+    font-weight: 700;
+}
+
+/* 4. The Form Area (Right Page) */
+.canvas-form-area {
+    position: absolute;
+    top: 20%;
+    left: 68%;
+    width: 25%;
+    height: 60%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 3%;
+    width: 100%;
+    height: 100%;
+}
+
+.form-group {
+    width: 100%;
+    margin-bottom: 2%;
+}
+
+/* Inputs styled as light yellow pills with black border */
+.form-input {
+    width: 100%;
+    padding: clamp(8px, 1.5vw, 16px) clamp(16px, 2vw, 24px);
+    background: #fdf8d5;
+    border: 2px solid #1a1a1a;
+    border-radius: 99px;
+    color: #1a1a1a;
+    font-size: clamp(0.9rem, 1vw, 1.1rem);
+    font-family: system-ui, -apple-system, sans-serif;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.form-input::placeholder {
+    color: #666666;
+}
+
+.form-input:focus {
+    background: #fff;
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.form-input.error {
+    background: #ffebee;
+    border-color: #d93025;
+}
+
+.btn {
+    width: 100%;
+    padding: clamp(8px, 1.5vw, 16px) clamp(16px, 2vw, 24px);
+    background: #fdf8d5;
+    border: 2px solid #1a1a1a;
+    border-radius: 99px;
+    color: #1a1a1a;
+    font-size: clamp(0.9rem, 1vw, 1.1rem);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 10px;
+}
+
+.btn:hover {
+    background: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.input-toggle-btn {
+    color: #1a1a1a;
+}

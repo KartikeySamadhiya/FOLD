@@ -56,13 +56,12 @@ const userSchema = new mongoose.Schema(
 // --- Pre-save Hook ---
 // Hash the password automatically before saving. This ensures
 // we NEVER store plain-text passwords in the database.
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
     // Only re-hash if the password field was actually modified
-    if (!this.isModified('password')) return next();
+    if (!this.isModified('password')) return;
 
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
-    next();
 });
 
 // --- Instance Methods ---
