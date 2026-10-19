@@ -1,5 +1,6 @@
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const express = require('express');
 const cors = require('cors');
@@ -10,6 +11,7 @@ const authRoutes = require('./routes/authRoutes');
 const journalRoutes = require('./routes/journalRoutes');
 const connectionRoutes = require('./routes/connectionRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
+const reminderRoutes = require('./routes/reminderRoutes');
 
 const app = express();
 
@@ -29,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/journal', journalRoutes);
 app.use('/api/connections', connectionRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/reminders', reminderRoutes);
 
 // --- Health Check Route ---
 app.get('/', (req, res) => {

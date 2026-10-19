@@ -1,168 +1,139 @@
-import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/api';
 import { Eye, EyeOff } from 'lucide-react';
 import './AuthLayout.css';
 
-const Register = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { login } = useAuth();
+const LeftPanel = () => (
+  <div className="auth-left-panel">
+    <div className="auth-brand">
+      <span className="brand-char">F</span>
+      <span className="brand-char">O</span>
+      <span className="brand-char">L</span>
+      <span className="brand-char">D</span>
+    </div>
+    <div className="auth-tagline">
+      Your personal journal, connections,<br />
+      and reminders — all in one place.
+    </div>
     
-    // Check if we are on the login or register page to highlight the correct tape tab
-    const isLogin = location.pathname === '/login';
+    {/* Custom illustration will go here */}
+    <div className="auth-illustration-area" />
+    
+    <div className="auth-features">
+      <div className="auth-feature-badge">📝 Journal</div>
+      <div className="auth-feature-badge">👥 Connections</div>
+      <div className="auth-feature-badge">🔔 Reminders</div>
+    </div>
+  </div>
+);
 
-    const [showPassword, setShowPassword] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
+export default function Register() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-    });
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-        setError('');
-    };
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    if (password !== confirmPassword) {
+      return setError('Passwords do not match');
+    }
+    if (password.length < 8) {
+      return setError('Password must be at least 8 characters');
+    }
 
-    const handleRegisterSubmit = async (e) => {
-        e.preventDefault();
-        
-        if (formData.password !== formData.confirmPassword) {
-            return setError('Passwords do not match');
-        }
-        if (formData.password.length < 8) {
-            return setError('Password must be at least 8 characters long');
-        }
+    setIsLoading(true);
+    setError('');
 
-        setIsLoading(true);
-        setError('');
+    try {
+      const { data } = await authService.register({ name, email, password });
+      login(data.token, data.user);
+      navigate('/');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to register');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        try {
-            const { data } = await authService.register({
-                name: formData.name,
-                email: formData.email,
-                password: formData.password,
-            });
-
-            login(data.token, data.user);
-            navigate('/');
-        } catch (err) {
-            setError(err.response?.data?.message || 'Registration failed.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="auth-wrapper">
-            <div className="auth-canvas">
-                
-                {/* 1. Logo Area */}
-                <div className="canvas-logo-area">
-                    <h1 className="canvas-logo-text">FOLD</h1>
-                    <h2 className="canvas-subheadline">
-                        Make a fold about...<br />
-                        <span className="highlight-something">Something</span> or <span className="highlight-someone">Someone</span>
-                    </h2>
-                </div>
-
-                {/* 2. Polaroid Text */}
-                <div className="canvas-polaroid-text">
-                    Journal<br />
-                    Task-List<br />
-                    Credential<br />
-                    vault &nbsp;♡
-                </div>
-
-                {/* 3. Tape Tabs */}
-                <Link to="/register" className={`canvas-tape-top ${!isLogin ? 'active' : ''}`}>Sign Up</Link>
-                <Link to="/login" className={`canvas-tape-bottom ${isLogin ? 'active' : ''}`}>Login</Link>
-
-                {/* 4. Form Area inside Book */}
-                <div className="canvas-form-area" style={{ top: '15%', height: '70%' }}>
-                    {error && (
-                        <div className="alert" style={{ marginBottom: '10px', fontSize: 'clamp(0.8rem, 1vw, 1rem)', padding: '8px' }}>
-                            {error}
-                        </div>
-                    )}
-
-                    <form className="auth-form" onSubmit={handleRegisterSubmit}>
-                        <div className="form-group">
-                            <input
-                                type="text"
-                                id="name"
-                                name="name"
-                                className={`form-input ${error && !formData.name ? 'error' : ''}`}
-                                placeholder="Full Name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <input
-                                type="email"
-                                id="email"
-                                name="email"
-                                className={`form-input ${error && !formData.email ? 'error' : ''}`}
-                                placeholder="Email Address"
-                                value={formData.email}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <div className="input-wrapper">
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    id="password"
-                                    name="password"
-                                    className={`form-input ${error && formData.password.length < 8 ? 'error' : ''}`}
-                                    placeholder="Master Password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    required
-                                    minLength="8"
-                                />
-                                <button
-                                    type="button"
-                                    className="input-toggle-btn"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    tabIndex="-1"
-                                >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                className={`form-input ${error && formData.password !== formData.confirmPassword ? 'error' : ''}`}
-                                placeholder="Confirm Password"
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <button type="submit" className="btn" disabled={isLoading}>
-                            {isLoading ? 'Creating...' : 'Create Account'}
-                        </button>
-                    </form>
-                </div>
+  return (
+    <div className="auth-page-container">
+      <LeftPanel />
+      <div className="auth-right-panel">
+        <div className="auth-card">
+          <div className="auth-tabs">
+            <Link to="/login" className="auth-tab">Login</Link>
+            <Link to="/register" className="auth-tab active">Sign Up</Link>
+          </div>
+          
+          {error && <div className="auth-error">{error}</div>}
+          
+          <form onSubmit={handleRegister}>
+            <div className="auth-form-group">
+              <label className="auth-form-label">Name</label>
+              <input
+                type="text"
+                className="auth-form-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
             </div>
+            <div className="auth-form-group">
+              <label className="auth-form-label">Email</label>
+              <input
+                type="email"
+                className="auth-form-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="auth-form-group">
+              <label className="auth-form-label">Password</label>
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="auth-form-input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+            <div className="auth-form-group">
+              <label className="auth-form-label">Confirm Password</label>
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="auth-form-input"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <button type="submit" className="auth-submit-btn" disabled={isLoading}>
+              {isLoading ? 'Please wait...' : 'Sign Up'}
+            </button>
+          </form>
         </div>
-    );
-};
-
-export default Register;
+      </div>
+    </div>
+  );
+}

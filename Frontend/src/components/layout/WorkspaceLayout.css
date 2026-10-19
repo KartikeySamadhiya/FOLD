@@ -93,11 +93,19 @@
     overflow-y: auto;
 }
 
-/* ---- Floating Add Button ---- */
-.fab {
+/* ---- Floating Action Button Menu ---- */
+.fab-container {
     position: fixed;
     bottom: 32px;
-    right: 312px; /* 280px calendar + 32px offset */
+    right: 312px;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 10px;
+    z-index: 100;
+}
+
+.fab {
     width: 56px;
     height: 56px;
     border-radius: 16px;
@@ -110,12 +118,58 @@
     justify-content: center;
     box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     transition: all 0.2s ease;
-    z-index: 100;
 }
 
-.fab:hover {
-    transform: scale(1.08);
-    box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+.fab-container:hover .fab,
+.fab-open .fab {
+    transform: rotate(45deg);
+    border-radius: 50%;
+}
+
+/* Mini action buttons */
+.fab-mini {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
+    opacity: 0;
+    transform: scale(0.4) translateY(20px);
+    pointer-events: none;
+}
+
+.fab-open .fab-mini,
+.fab-container:hover .fab-mini {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: all;
+}
+
+.fab-mini-fold {
+    background: #4285f4;
+    color: #fff;
+    transition-delay: 0.03s;
+}
+
+.fab-mini-fold:hover {
+    background: #3367d6;
+    transform: scale(1.1) !important;
+}
+
+.fab-mini-reminder {
+    background: #fdd835;
+    color: #333;
+    transition-delay: 0.06s;
+}
+
+.fab-mini-reminder:hover {
+    background: #fbc02d;
+    transform: scale(1.1) !important;
 }
 
 /* ---- Entry Cards (Devfolio-inspired) ---- */

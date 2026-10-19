@@ -8,9 +8,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const api = axios.create({
     baseURL: API_BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
 });
 
 // Request interceptor: automatically attach the JWT to every request
@@ -30,10 +27,13 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Token is invalid/expired — clear storage and redirect to login
-            localStorage.removeItem('fold_token');
-            localStorage.removeItem('fold_user');
-            window.location.href = '/login';
+            // Don't redirect if we're already on an auth endpoint (login/register)
+            const url = error.config?.url || '';
+            if (!url.includes('/auth/')) {
+                localStorage.removeItem('fold_token');
+                localStorage.removeItem('fold_user');
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }
@@ -70,6 +70,15 @@ export const connectionService = {
 // --- Calendar Service ---
 export const calendarService = {
     getMonth: (month, year) => api.get(`/calendar?month=${month}&year=${year}`),
+};
+
+// --- Reminder Service ---
+export const reminderService = {
+    create: (data) => api.post('/reminders', data),
+    getByDate: (date) => api.get(`/reminders/date/${date}`),
+    update: (id, data) => api.put(`/reminders/${id}`, data),
+    delete: (id) => api.delete(`/reminders/${id}`),
+    toggleComplete: (id) => api.patch(`/reminders/${id}/toggle`),
 };
 
 export default api;

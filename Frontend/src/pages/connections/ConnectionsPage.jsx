@@ -52,6 +52,7 @@ const ConnectionsPage = () => {
             }
             setShowForm(false);
             setEditingConnection(null);
+            window.dispatchEvent(new Event('reminder-changed'));
         } catch (err) { console.error('Failed to save:', err); }
     };
 
@@ -60,6 +61,7 @@ const ConnectionsPage = () => {
             await connectionService.delete(id);
             setConnections(connections.filter((c) => c._id !== id));
             setViewingConnection(null);
+            window.dispatchEvent(new Event('reminder-changed'));
         } catch (err) { console.error('Failed to delete:', err); }
     };
 
@@ -129,9 +131,11 @@ const ConnectionsPage = () => {
                 </div>
             )}
 
-            <button className="fab" onClick={() => { setEditingConnection(null); setShowForm(true); }} title="Add someone">
-                <Plus size={24} />
-            </button>
+            <div className="fab-container">
+                <button className="fab" onClick={() => { setEditingConnection(null); setShowForm(true); }} title="Add someone">
+                    <Plus size={24} />
+                </button>
+            </div>
 
             {showForm && (
                 <ConnectionFormModal

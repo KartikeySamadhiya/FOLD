@@ -135,11 +135,13 @@
 .cal-dot-journal { background: #4285f4; }
 .cal-dot-reminder { background: #ff9800; }
 .cal-dot-birthday { background: #e91e63; }
+.cal-dot-standalone { background: #fdd835; }
 
 /* Legend */
 .cal-legend {
     display: flex;
-    gap: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
     margin-top: 16px;
     padding-top: 12px;
     border-top: 1px solid #eee;
@@ -185,3 +187,89 @@
 .cal-event-journal { background: #e8f0fe; }
 .cal-event-reminder { background: #fff3e0; }
 .cal-event-birthday { background: #fce4ec; }
+
+/* ---- Standalone Reminder Notification Boxes ---- */
+.cal-reminder-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: #fffde7;
+    border: 1px solid #fff9c4;
+    border-left: 3px solid #fdd835;
+    border-radius: 6px;
+    transition: all 0.15s;
+}
+
+.cal-reminder-box:hover {
+    background: #fff8e1;
+}
+
+.cal-reminder-done {
+    opacity: 0.55;
+}
+
+.cal-reminder-done .cal-reminder-title {
+    text-decoration: line-through;
+    color: #aaa;
+}
+
+.cal-reminder-check {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border-radius: 4px;
+    border: 1.5px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4caf50;
+    transition: all 0.15s;
+    padding: 0;
+}
+
+.cal-reminder-done .cal-reminder-check {
+    background: #e8f5e9;
+    border-color: #4caf50;
+}
+
+.cal-reminder-check:hover {
+    border-color: #4caf50;
+    background: #f1f8e9;
+}
+
+.cal-reminder-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.cal-reminder-title {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cal-reminder-time {
+    font-size: 0.65rem;
+    color: #999;
+}
+
+.cal-reminder-recur {
+    font-size: 0.6rem;
+    color: #f9a825;
+    background: #fff8e1;
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    text-transform: capitalize;
+}
+

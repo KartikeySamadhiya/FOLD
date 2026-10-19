@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Smile, Meh, Frown, Sparkles, Heart, Brain, X, Image as ImageIcon } from 'lucide-react';
-import { journalService } from '../../services/api';
+import { Plus, Smile, Meh, Frown, Sparkles, Heart, Brain, X, Image as ImageIcon, Bell, FileText, Edit, Trash2 } from 'lucide-react';
+import { journalService, reminderService } from '../../services/api';
 
 const MOOD_ICONS = {
     happy: { icon: Smile, label: 'Happy', color: '#4caf50' },
@@ -16,7 +16,10 @@ const JournalPage = ({ selectedDate }) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showForm, setShowForm] = useState(false);
+    const [showReminderForm, setShowReminderForm] = useState(false);
     const [editingEntry, setEditingEntry] = useState(null);
+    const [viewingEntry, setViewingEntry] = useState(null);
+    const [fabOpen, setFabOpen] = useState(false);
 
     const dateObj = selectedDate ? new Date(selectedDate) : new Date();
     const displayDate = dateObj.toLocaleDateString('en-US', {
@@ -49,26 +52,55 @@ const JournalPage = ({ selectedDate }) => {
         fetchEntries();
     }, [selectedDate]);
 
-    const handleSave = async (formData) => {
+    const handleSave = async (data) => {
         try {
+            const formData = new FormData();
+            formData.append('title', data.title || '');
+            formData.append('content', data.content || '');
+            formData.append('mood', data.mood || 'neutral');
+            
+            // Preserve the original date if editing, otherwise use selectedDate or today
+            const entryDate = editingEntry ? editingEntry.date : (selectedDate || new Date().toISOString().slice(0, 10));
+            formData.append('date', entryDate);
+            
+            // Preserve existing tags if the form doesn't pass them
+            if (data.tags && data.tags.length > 0) {
+                formData.append('tags', JSON.stringify(data.tags));
+            } else if (editingEntry && editingEntry.tags) {
+                formData.append('tags', JSON.stringify(editingEntry.tags));
+            }
+
+            // Separate existing URL-based photos from newly uploaded File objects
+            const existingPhotos = [];
+            if (data.photos && data.photos.length > 0) {
+                data.photos.forEach((photo) => {
+                    if (photo.file) {
+                        // New file the user just picked
+                        formData.append('photos', photo.file);
+                    } else if (photo.url) {
+                        // Already-uploaded photo (ImageKit URL or legacy base64)
+                        existingPhotos.push({ url: photo.url, caption: photo.caption || '' });
+                    }
+                });
+            }
+            formData.append('existingPhotos', JSON.stringify(existingPhotos));
+
             if (editingEntry) {
-                const { data } = await journalService.update(editingEntry._id, formData);
-                if (data.success) {
-                    setEntries(entries.map((e) => (e._id === editingEntry._id ? data.data : e)));
+                const response = await journalService.update(editingEntry._id, formData);
+                if (response.data.success) {
+                    setEntries(entries.map(e => e._id === editingEntry._id ? response.data.data : e));
                 }
             } else {
-                const { data } = await journalService.create({
-                    ...formData,
-                    date: selectedDate || new Date().toISOString().slice(0, 10),
-                });
-                if (data.success) {
-                    setEntries([data.data, ...entries]);
+                const response = await journalService.create(formData);
+                if (response.data.success) {
+                    setEntries([response.data.data, ...entries]);
                 }
             }
             setShowForm(false);
             setEditingEntry(null);
         } catch (err) {
-            console.error('Failed to save:', err);
+            console.error('Failed to save fold:', err.response?.data || err.message || err);
+            alert('Failed to save: ' + (err.response?.data?.message || err.message || 'Unknown error'));
         }
     };
 
@@ -84,6 +116,20 @@ const JournalPage = ({ selectedDate }) => {
     const openEdit = (entry) => {
         setEditingEntry(entry);
         setShowForm(true);
+    };
+
+    const handleReminderSave = async (reminderData) => {
+        try {
+            await reminderService.create({
+                ...reminderData,
+                date: selectedDate || new Date().toISOString().slice(0, 10),
+            });
+            setShowReminderForm(false);
+            // Trigger a calendar refresh by dispatching a custom event
+            window.dispatchEvent(new Event('reminder-changed'));
+        } catch (err) {
+            console.error('Failed to create reminder:', err);
+        }
     };
 
     return (
@@ -122,13 +168,14 @@ const JournalPage = ({ selectedDate }) => {
                         <div
                             key={entry._id}
                             className={`entry-card ${hasImage ? 'entry-card-with-image' : ''}`}
-                            onClick={() => openEdit(entry)}
+                            onClick={() => setViewingEntry(entry)}
                         >
                             {hasImage && (
                                 <img
                                     src={entry.photos[0].url}
                                     alt={entry.photos[0].caption || 'Photo'}
                                     className="entry-card-image"
+                                    loading="lazy"
                                 />
                             )}
                             <div>
@@ -148,18 +195,60 @@ const JournalPage = ({ selectedDate }) => {
                 })
             )}
 
-            {/* Floating Add Button */}
-            <button className="fab" onClick={() => { setEditingEntry(null); setShowForm(true); }} title="Add a fold">
-                <Plus size={24} />
-            </button>
+            {/* FAB Menu */}
+            <div
+                className={`fab-container ${fabOpen ? 'fab-open' : ''}`}
+                onMouseEnter={() => setFabOpen(true)}
+                onMouseLeave={() => setFabOpen(false)}
+            >
+                {/* Main FAB - renders first, appears at bottom due to column-reverse */}
+                <button className="fab" title="Create">
+                    <Plus size={24} />
+                </button>
 
-            {/* Add/Edit Modal */}
+                {/* Mini action buttons - fan out above */}
+                <button
+                    className="fab-mini fab-mini-fold"
+                    onClick={() => { setEditingEntry(null); setShowForm(true); setFabOpen(false); }}
+                    title="New Fold"
+                >
+                    <FileText size={18} />
+                </button>
+                <button
+                    className="fab-mini fab-mini-reminder"
+                    onClick={() => { setShowReminderForm(true); setFabOpen(false); }}
+                    title="New Reminder"
+                >
+                    <Bell size={18} />
+                </button>
+            </div>
+
+            {/* Add/Edit Journal Modal */}
             {showForm && (
                 <EntryFormModal
                     entry={editingEntry}
                     onSave={handleSave}
                     onDelete={editingEntry ? () => { handleDelete(editingEntry._id); setShowForm(false); setEditingEntry(null); } : null}
                     onClose={() => { setShowForm(false); setEditingEntry(null); }}
+                />
+            )}
+
+            {/* View Entry Detail Modal */}
+            {viewingEntry && (
+                <EntryDetailView
+                    entry={viewingEntry}
+                    onEdit={() => { setEditingEntry(viewingEntry); setViewingEntry(null); setShowForm(true); }}
+                    onDelete={() => { handleDelete(viewingEntry._id); setViewingEntry(null); }}
+                    onClose={() => setViewingEntry(null)}
+                />
+            )}
+
+            {/* Reminder Modal */}
+            {showReminderForm && (
+                <ReminderFormModal
+                    selectedDate={selectedDate}
+                    onSave={handleReminderSave}
+                    onClose={() => setShowReminderForm(false)}
                 />
             )}
         </>
@@ -177,11 +266,8 @@ const EntryFormModal = ({ entry, onSave, onDelete, onClose }) => {
     const handlePhotoUpload = (e) => {
         const files = Array.from(e.target.files);
         files.forEach((file) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPhotos((prev) => [...prev, { url: reader.result, caption: '' }]);
-            };
-            reader.readAsDataURL(file);
+            // Store the actual file for FormData upload, and generate a local URL for the preview
+            setPhotos((prev) => [...prev, { url: URL.createObjectURL(file), caption: '', file: file }]);
         });
         e.target.value = '';
     };
@@ -311,6 +397,161 @@ const EntryFormModal = ({ entry, onSave, onDelete, onClose }) => {
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    );
+};
+
+// ---- Reminder Form Modal ----
+const ReminderFormModal = ({ selectedDate, onSave, onClose }) => {
+    const [title, setTitle] = useState('');
+    const [time, setTime] = useState('');
+    const [notes, setNotes] = useState('');
+    const [recurring, setRecurring] = useState('none');
+
+    const dateObj = selectedDate ? new Date(selectedDate) : new Date();
+    const displayDate = dateObj.toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric',
+    });
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave({ title, time, notes, recurring });
+    };
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h2 className="modal-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Bell size={20} /> New Reminder
+                    </h2>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}>
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div style={{
+                    background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 8,
+                    padding: '8px 12px', marginBottom: 16, fontSize: '0.85rem', color: '#f9a825',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                    📅 {displayDate}
+                </div>
+
+                <form onSubmit={handleSubmit}>
+                    <div className="ws-form-group">
+                        <label className="ws-label">What do you need to remember?</label>
+                        <input
+                            type="text"
+                            className="ws-input"
+                            placeholder="e.g., Doctor appointment, Submit assignment..."
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            required
+                            autoFocus
+                        />
+                    </div>
+
+                    <div className="ws-form-group">
+                        <label className="ws-label">Time (optional)</label>
+                        <input
+                            type="time"
+                            className="ws-input"
+                            value={time}
+                            onChange={(e) => setTime(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="ws-form-group">
+                        <label className="ws-label">Repeat</label>
+                        <select
+                            className="ws-select"
+                            value={recurring}
+                            onChange={(e) => setRecurring(e.target.value)}
+                        >
+                            <option value="none">Does not repeat</option>
+                            <option value="daily">Every day</option>
+                            <option value="weekly">Every week</option>
+                            <option value="monthly">Every month</option>
+                            <option value="yearly">Every year</option>
+                        </select>
+                    </div>
+
+                    <div className="ws-form-group">
+                        <label className="ws-label">Notes (optional)</label>
+                        <textarea
+                            className="ws-textarea"
+                            placeholder="Any extra details..."
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            rows={3}
+                        />
+                    </div>
+
+                    <div className="ws-btn-row">
+                        <button type="button" className="ws-btn ws-btn-secondary" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="ws-btn ws-btn-primary">
+                            Set Reminder
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// ---- Entry Detail View (Read-Only) ----
+const EntryDetailView = ({ entry, onEdit, onDelete, onClose }) => {
+    const MoodInfo = MOOD_ICONS[entry.mood] || MOOD_ICONS.neutral;
+    const MoodIcon = MoodInfo.icon;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ padding: 0, overflow: 'hidden' }}>
+                {/* Header Actions */}
+                <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 8, zIndex: 10 }}>
+                    <button onClick={onEdit} className="icon-button" style={{ background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} title="Edit">
+                        <Edit size={18} color="#1a1a1a" />
+                    </button>
+                    <button onClick={() => { if(window.confirm('Delete this fold?')) onDelete(); }} className="icon-button" style={{ background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} title="Delete">
+                        <Trash2 size={18} color="#e53935" />
+                    </button>
+                    <button onClick={onClose} className="icon-button" style={{ background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} title="Close">
+                        <X size={18} color="#1a1a1a" />
+                    </button>
+                </div>
+
+                {/* Hero Image */}
+                {entry.photos && entry.photos.length > 0 && (
+                    <div style={{ width: '100%', height: '350px', backgroundColor: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #eee' }}>
+                        <img 
+                            src={entry.photos[0].url} 
+                            alt={entry.photos[0].caption || 'Entry photo'} 
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                        />
+                    </div>
+                )}
+
+                <div style={{ padding: '24px 32px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                        <h2 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#1a1a1a', margin: 0, flex: 1 }}>{entry.title || 'Untitled Fold'}</h2>
+                        <span className="mood-badge" style={{ color: MoodInfo.color, fontSize: '0.85rem', padding: '4px 12px', background: `${MoodInfo.color}15`, marginTop: 4, marginLeft: 16 }}>
+                            <MoodIcon size={16} /> {MoodInfo.label}
+                        </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.9rem', color: '#888', marginBottom: 24, display: 'flex', gap: 16 }}>
+                        <span>{new Date(entry.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                        {entry.tags && entry.tags.length > 0 && (
+                            <span style={{ color: '#4a3d8f' }}>{entry.tags.map(t => `#${t}`).join(' ')}</span>
+                        )}
+                    </div>
+
+                    <div style={{ fontSize: '1.1rem', color: '#444', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+                        {entry.content}
+                    </div>
+                </div>
             </div>
         </div>
     );

@@ -1,192 +1,110 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/api';
 import { Eye, EyeOff } from 'lucide-react';
 import './AuthLayout.css';
 
-const Login = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { login } = useAuth();
+const LeftPanel = () => (
+  <div className="auth-left-panel">
+    <div className="auth-brand">
+      <span className="brand-char">F</span>
+      <span className="brand-char">O</span>
+      <span className="brand-char">L</span>
+      <span className="brand-char">D</span>
+    </div>
+    <div className="auth-tagline">
+      Your personal journal, connections,<br />
+      and reminders — all in one place.
+    </div>
     
-    // Check if we are on the login or register page to highlight the correct tape tab
-    const isLogin = location.pathname === '/login';
+    {/* Custom illustration will go here */}
+    <div className="auth-illustration-area" />
+    
+    <div className="auth-features">
+      <div className="auth-feature-badge">📝 Journal</div>
+      <div className="auth-feature-badge">👥 Connections</div>
+      <div className="auth-feature-badge">🔔 Reminders</div>
+    </div>
+  </div>
+);
 
+export default function Login() {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-        totpCode: '',
-    });
+    const { login } = useAuth();
+    const navigate = useNavigate();
 
-    const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
-    const [preAuthToken, setPreAuthToken] = useState('');
-
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-        setError('');
-    };
-
-    const handleLoginSubmit = async (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
 
         try {
-            const { data } = await authService.login({
-                email: formData.email,
-                password: formData.password,
-            });
-
-            if (data.requiresTwoFactor) {
-                setRequiresTwoFactor(true);
-                setPreAuthToken(data.preAuthToken);
-            } else {
-                login(data.token, data.user);
-                navigate('/');
-            }
-        } catch (err) {
-            setError(err.response?.data?.message || 'Login failed.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleTwoFactorSubmit = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError('');
-
-        try {
-            const { data } = await authService.verifyTwoFactorLogin({
-                preAuthToken,
-                totpCode: formData.totpCode,
-            });
-
+            const { data } = await authService.login({ email, password });
             login(data.token, data.user);
             navigate('/');
         } catch (err) {
-            setError(err.response?.data?.message || 'Invalid 2FA code.');
+            setError(err.response?.data?.message || 'Failed to login. Is the backend running?');
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="auth-wrapper">
-            <div className="auth-canvas">
-                
-                {/* 1. Logo Area */}
-                <div className="canvas-logo-area">
-                    <h1 className="canvas-logo-text">FOLD</h1>
-                    <h2 className="canvas-subheadline">
-                        Make a fold about...<br />
-                        <span className="highlight-something">Something</span> or <span className="highlight-someone">Someone</span>
-                    </h2>
-                </div>
-
-                {/* 2. Polaroid Text */}
-                <div className="canvas-polaroid-text">
-                    Journal<br />
-                    Task-List<br />
-                    Credential vault<br />
-                     &nbsp;
-                </div>
-
-                {/* 3. Tape Tabs */}
-                <Link to="/register" className={`canvas-tape-top ${!isLogin ? 'active' : ''}`}>Sign Up</Link>
-                <Link to="/login" className={`canvas-tape-bottom ${isLogin ? 'active' : ''}`}>Login</Link>
-
-                {/* 4. Form Area inside Book */}
-                <div className="canvas-form-area">
-                    {error && (
-                        <div className="alert" style={{ marginBottom: '10px', fontSize: 'clamp(0.8rem, 1vw, 1rem)', padding: '8px' }}>
-                            {error}
+        <div className="auth-page-container">
+            <LeftPanel />
+            <div className="auth-right-panel">
+                <div className="auth-card">
+                    <div className="auth-tabs">
+                        <Link to="/login" className="auth-tab active">Login</Link>
+                        <Link to="/register" className="auth-tab">Sign Up</Link>
+                    </div>
+                    
+                    {error && <div className="auth-error">{error}</div>}
+                    
+                    <form onSubmit={handleLogin}>
+                        <div className="auth-form-group">
+                            <label className="auth-form-label">Email</label>
+                            <input
+                                type="email"
+                                className="auth-form-input"
+                                value={email}
+                                onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                                required
+                                autoFocus
+                            />
                         </div>
-                    )}
-
-                    {!requiresTwoFactor ? (
-                        <form className="auth-form" onSubmit={handleLoginSubmit}>
-                            <div className="form-group">
+                        <div className="auth-form-group">
+                            <label className="auth-form-label">Password</label>
+                            <div className="password-input-wrapper">
                                 <input
-                                    type="email"
-                                    id="email"
-                                    name="email"
-                                    className={`form-input ${error && !formData.email ? 'error' : ''}`}
-                                    placeholder="Email Address"
-                                    value={formData.email}
-                                    onChange={handleChange}
+                                    type={showPassword ? 'text' : 'password'}
+                                    className="auth-form-input"
+                                    value={password}
+                                    onChange={(e) => { setPassword(e.target.value); setError(''); }}
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    className="password-toggle-btn"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    tabIndex="-1"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
-
-                            <div className="form-group">
-                                <div className="input-wrapper">
-                                    <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        id="password"
-                                        name="password"
-                                        className={`form-input ${error && !formData.password ? 'error' : ''}`}
-                                        placeholder="Password"
-                                        value={formData.password}
-                                        onChange={handleChange}
-                                        required
-                                    />
-                                    <button
-                                        type="button"
-                                        className="input-toggle-btn"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        tabIndex="-1"
-                                    >
-                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <button type="submit" className="btn" disabled={isLoading}>
-                                {isLoading ? 'Loading...' : 'Login'}
-                            </button>
-                        </form>
-                    ) : (
-                        <form className="auth-form" onSubmit={handleTwoFactorSubmit}>
-                            <div className="form-group">
-                                <input
-                                    type="text"
-                                    id="totpCode"
-                                    name="totpCode"
-                                    className={`form-input ${error ? 'error' : ''}`}
-                                    placeholder="2FA Code (000000)"
-                                    value={formData.totpCode}
-                                    onChange={handleChange}
-                                    maxLength="6"
-                                    autoComplete="one-time-code"
-                                    autoFocus
-                                    required
-                                />
-                            </div>
-
-                            <button type="submit" className="btn" disabled={isLoading || formData.totpCode.length < 6}>
-                                Verify
-                            </button>
-                            <button
-                                type="button"
-                                className="btn"
-                                style={{ background: 'transparent', color: '#ff5e00', border: '2px solid #ff5e00' }}
-                                onClick={() => setRequiresTwoFactor(false)}
-                                disabled={isLoading}
-                            >
-                                Back
-                            </button>
-                        </form>
-                    )}
+                        </div>
+                        <button type="submit" className="auth-submit-btn" disabled={isLoading}>
+                            {isLoading ? 'Logging in...' : 'Log In'}
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
     );
-};
-
-export default Login;
+}

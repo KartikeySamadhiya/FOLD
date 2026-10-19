@@ -1,5 +1,6 @@
 const JournalEntry = require('../models/JournalEntry');
 const Connection = require('../models/Connection');
+const Reminder = require('../models/Reminder');
 
 // @desc    Get unified calendar data for a given month
 // @route   GET /api/calendar?month=7&year=2026
@@ -57,11 +58,13 @@ exports.getCalendarData = async (req, res) => {
         const birthdayEvents = [];
         allConnections.forEach((conn) => {
             const dob = new Date(conn.dateOfBirth);
-            if (dob.getMonth() === parseInt(month) - 1) {
+            const bMonth = dob.getUTCMonth();
+            const bDate = dob.getUTCDate();
+            if (bMonth === parseInt(month) - 1) {
                 birthdayEvents.push({
                     type: 'birthday',
                     title: `${conn.name}'s Birthday`,
-                    date: new Date(year, month - 1, dob.getDate()),
+                    date: new Date(year, month - 1, bDate),
                     connectionName: conn.name,
                     connectionPhoto: conn.photo,
                     connectionId: conn._id,
@@ -74,7 +77,7 @@ exports.getCalendarData = async (req, res) => {
         const daysInMonth = new Date(year, month, 0).getDate();
 
         for (let day = 1; day <= daysInMonth; day++) {
-            calendarMap[day] = { journal: [], reminders: [], birthdays: [] };
+            calendarMap[day] = { journal: [], reminders: [], birthdays: [], standaloneReminders: [] };
         }
 
         journalEntries.forEach((entry) => {
@@ -95,6 +98,78 @@ exports.getCalendarData = async (req, res) => {
             const day = new Date(event.date).getDate();
             if (calendarMap[day]) {
                 calendarMap[day].birthdays.push(event);
+            }
+        });
+
+        // 4. Get standalone reminders
+        // Fetch ALL user reminders (recurring ones could match any month)
+        const allReminders = await Reminder.find({
+            userId: req.user._id,
+        }).select('title date time completed recurring');
+
+        const m = parseInt(month) - 1; // 0-indexed month
+        const y = parseInt(year);
+
+        allReminders.forEach((rem) => {
+            const remDate = new Date(rem.date);
+            const remDay = remDate.getUTCDate();
+            const remMonth = remDate.getUTCMonth();
+            const remYear = remDate.getUTCFullYear();
+            const remDayOfWeek = remDate.getUTCDay();
+            const recur = rem.recurring || 'none';
+
+            const pushReminder = (day) => {
+                if (calendarMap[day]) {
+                    calendarMap[day].standaloneReminders.push({
+                        _id: rem._id,
+                        type: 'standalone-reminder',
+                        title: rem.title,
+                        date: rem.date,
+                        time: rem.time,
+                        completed: rem.completed,
+                        recurring: recur,
+                    });
+                }
+            };
+
+            if (recur === 'none') {
+                // Exact match only
+                if (remMonth === m && remYear === y) {
+                    pushReminder(remDay);
+                }
+            } else if (recur === 'yearly') {
+                // Same month & day, any year (on or after original)
+                if (remMonth === m && y >= remYear) {
+                    pushReminder(remDay);
+                }
+            } else if (recur === 'monthly') {
+                // Same day every month (on or after original date)
+                if (y > remYear || (y === remYear && m >= remMonth)) {
+                    const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+                    if (remDay <= lastDay) {
+                        pushReminder(remDay);
+                    }
+                }
+            } else if (recur === 'weekly') {
+                // Same weekday every week (on or after original date)
+                const viewStart = new Date(Date.UTC(y, m, 1));
+                if (viewStart >= new Date(Date.UTC(remYear, remMonth, 1)) || (remYear === y && remMonth === m)) {
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const check = new Date(Date.UTC(y, m, d));
+                        if (check.getUTCDay() === remDayOfWeek && check >= remDate) {
+                            pushReminder(d);
+                        }
+                    }
+                }
+            } else if (recur === 'daily') {
+                // Every single day (on or after original date)
+                const originalDate = new Date(Date.UTC(remYear, remMonth, remDay));
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const check = new Date(Date.UTC(y, m, d));
+                    if (check >= originalDate) {
+                        pushReminder(d);
+                    }
+                }
             }
         });
 

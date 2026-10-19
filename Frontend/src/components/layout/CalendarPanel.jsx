@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
-import { calendarService } from '../../services/api';
+import { useState, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, CalendarDays, Check } from 'lucide-react';
+import { calendarService, reminderService } from '../../services/api';
 
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_NAMES = [
@@ -14,19 +14,28 @@ const CalendarPanel = ({ selectedDate, onDateSelect }) => {
     const [viewYear, setViewYear] = useState(today.getFullYear());
     const [calendarMap, setCalendarMap] = useState({});
 
-    useEffect(() => {
-        const fetchCalendar = async () => {
-            try {
-                const { data } = await calendarService.getMonth(viewMonth + 1, viewYear);
-                if (data.success) {
-                    setCalendarMap(data.data.calendarMap);
-                }
-            } catch (err) {
-                console.error('Failed to fetch calendar:', err);
+    const fetchCalendar = useCallback(async () => {
+        setCalendarMap({}); // Clear stale data immediately so old month's events don't flash
+        try {
+            const { data } = await calendarService.getMonth(viewMonth + 1, viewYear);
+            if (data.success) {
+                setCalendarMap(data.data.calendarMap);
             }
-        };
-        fetchCalendar();
+        } catch (err) {
+            console.error('Failed to fetch calendar:', err);
+        }
     }, [viewMonth, viewYear]);
+
+    useEffect(() => {
+        fetchCalendar();
+    }, [fetchCalendar]);
+
+    // Listen for reminder changes from JournalPage
+    useEffect(() => {
+        const handler = () => fetchCalendar();
+        window.addEventListener('reminder-changed', handler);
+        return () => window.removeEventListener('reminder-changed', handler);
+    }, [fetchCalendar]);
 
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
     const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
@@ -66,11 +75,12 @@ const CalendarPanel = ({ selectedDate, onDateSelect }) => {
 
     const getDayData = (day) => {
         const dayData = calendarMap[day];
-        if (!dayData) return { journal: [], reminders: [], birthdays: [] };
+        if (!dayData) return { journal: [], reminders: [], birthdays: [], standaloneReminders: [] };
         return {
             journal: dayData.journal || [],
             reminders: dayData.reminders || [],
             birthdays: dayData.birthdays || [],
+            standaloneReminders: dayData.standaloneReminders || [],
         };
     };
 
@@ -79,7 +89,7 @@ const CalendarPanel = ({ selectedDate, onDateSelect }) => {
     const selectedDayInView = selectedDate
         ? new Date(selectedDate).getMonth() === viewMonth && new Date(selectedDate).getFullYear() === viewYear
         : viewMonth === today.getMonth() && viewYear === today.getFullYear();
-    const selectedDayData = selectedDayInView ? getDayData(selectedDayNum) : { journal: [], reminders: [], birthdays: [] };
+    const selectedDayData = selectedDayInView ? getDayData(selectedDayNum) : { journal: [], reminders: [], birthdays: [], standaloneReminders: [] };
 
     const isViewingCurrentMonth = viewMonth === today.getMonth() && viewYear === today.getFullYear();
 
@@ -92,7 +102,7 @@ const CalendarPanel = ({ selectedDate, onDateSelect }) => {
         const dayData = getDayData(day);
         const todayClass = isToday(day) ? 'cal-today' : '';
         const selectedClass = isSelected(day) ? 'cal-selected' : '';
-        const hasAny = dayData.journal.length > 0 || dayData.reminders.length > 0 || dayData.birthdays.length > 0;
+        const hasAny = dayData.journal.length > 0 || dayData.reminders.length > 0 || dayData.birthdays.length > 0 || dayData.standaloneReminders.length > 0;
 
         cells.push(
             <button key={day} className={`cal-cell cal-day ${todayClass} ${selectedClass}`} onClick={() => handleDayClick(day)}>
@@ -102,6 +112,7 @@ const CalendarPanel = ({ selectedDate, onDateSelect }) => {
                         {dayData.journal.length > 0 && <span className="cal-dot cal-dot-journal" />}
                         {dayData.reminders.length > 0 && <span className="cal-dot cal-dot-reminder" />}
                         {dayData.birthdays.length > 0 && <span className="cal-dot cal-dot-birthday" />}
+                        {dayData.standaloneReminders.length > 0 && <span className="cal-dot cal-dot-standalone" />}
                     </div>
                 )}
             </button>
@@ -141,8 +152,9 @@ const CalendarPanel = ({ selectedDate, onDateSelect }) => {
             {/* Legend */}
             <div className="cal-legend">
                 <span className="cal-legend-item"><span className="cal-dot cal-dot-journal" /> Journal</span>
-                <span className="cal-legend-item"><span className="cal-dot cal-dot-reminder" /> Reminder</span>
+                <span className="cal-legend-item"><span className="cal-dot cal-dot-reminder" /> People</span>
                 <span className="cal-legend-item"><span className="cal-dot cal-dot-birthday" /> Birthday</span>
+                <span className="cal-legend-item"><span className="cal-dot cal-dot-standalone" /> Reminder</span>
             </div>
 
             {/* Selected Day Events */}
@@ -170,7 +182,37 @@ const CalendarPanel = ({ selectedDate, onDateSelect }) => {
                         </div>
                     ))}
 
-                    {selectedDayData.journal.length === 0 && selectedDayData.reminders.length === 0 && selectedDayData.birthdays.length === 0 && (
+                    {/* Standalone Reminders as notification boxes */}
+                    {selectedDayData.standaloneReminders.map((rem) => (
+                        <div
+                            key={rem._id}
+                            className={`cal-reminder-box ${rem.completed ? 'cal-reminder-done' : ''}`}
+                        >
+                            <button
+                                className="cal-reminder-check"
+                                onClick={async () => {
+                                    try {
+                                        await reminderService.toggleComplete(rem._id);
+                                        fetchCalendar();
+                                    } catch (err) { console.error(err); }
+                                }}
+                                title={rem.completed ? 'Mark incomplete' : 'Mark complete'}
+                            >
+                                {rem.completed ? <Check size={12} /> : null}
+                            </button>
+                            <div className="cal-reminder-content">
+                                <span className="cal-reminder-title">{rem.title}</span>
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                    {rem.time && <span className="cal-reminder-time">{rem.time}</span>}
+                                    {rem.recurring && rem.recurring !== 'none' && (
+                                        <span className="cal-reminder-recur">🔁 {rem.recurring}</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+
+                    {selectedDayData.journal.length === 0 && selectedDayData.reminders.length === 0 && selectedDayData.birthdays.length === 0 && selectedDayData.standaloneReminders.length === 0 && (
                         <div className="cal-event-item" style={{ color: '#bbb', fontStyle: 'italic' }}>
                             No events
                         </div>
